@@ -3,7 +3,7 @@ module ElmTest.Assertion where
 {-| The basic component of a test case, an assertion.
 
 # Assert
-@docs assertT, assert, assertEqual, assertNotEqual
+@docs Assertion, assertT, assert, assertEqual, assertNotEqual, assertionList
 
 -}    
 
