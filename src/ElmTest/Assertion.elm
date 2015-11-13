@@ -18,7 +18,6 @@ type Assertion
     | AssertEqual (() -> Bool) String String
     | AssertNotEqual (() -> Bool) String String
 
-
 {-| Basic function to create an Assert True assertion. Delays execution until tests are run. -}
 assertT : (() -> Bool) -> Assertion
 assertT =
