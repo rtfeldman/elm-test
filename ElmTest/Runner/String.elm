@@ -73,5 +73,9 @@ run t =
 {-| Runs a test or test suite. Returns the report as a String -}
 runDisplay : Test -> String
 runDisplay t =
-    let ((summary, _) :: results) = run t
-    in  vcat <| (summary ++ "\n") :: List.map fst results
+    case run t of
+      (summary, _) :: results ->
+        vcat <| (summary ++ "\n") :: List.map fst results
+
+      [] ->
+        ""

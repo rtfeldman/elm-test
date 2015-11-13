@@ -22,9 +22,14 @@ exit code 0 if all tests pass, or with code 1 if any tests fail.
 -}
 runDisplay : Test -> IO ()
 runDisplay tests =
-    let ((summary, allPassed) :: results) = String.run tests
-        out = summary ++ "\n\n" ++ (String.concat << List.intersperse "\n" << List.map fst <| results)
-    in putStrLn out >>>
-       case Run.pass allPassed of
-            True  -> exit 0
-            False -> exit 1
+    case String.run tests of
+        (summary, allPassed) :: results ->
+            let
+                out =
+                    summary ++ "\n\n" ++ (String.concat << List.intersperse "\n" << List.map fst <| results)
+            in putStrLn out >>>
+               case Run.pass allPassed of
+                    True  -> exit 0
+                    False -> exit 1
+        [] ->
+            exit 0
