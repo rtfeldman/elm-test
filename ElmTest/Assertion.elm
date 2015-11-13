@@ -9,6 +9,8 @@ module ElmTest.Assertion where
 
 import List
 
+
+{-| The different types of assertion: True, False, Equal, and NotEqual. -}
 type Assertion = AssertTrue     (() -> Bool)
                | AssertFalse    (() -> Bool)
                | AssertEqual    (() -> Bool) String String
