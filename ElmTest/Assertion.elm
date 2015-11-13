@@ -5,7 +5,7 @@ module ElmTest.Assertion where
 # Assert
 @docs Assertion, assertT, assert, assertEqual, assertNotEqual, assertionList
 
--}    
+-}
 
 import List
 
@@ -20,7 +20,7 @@ type Assertion = AssertTrue     (() -> Bool)
 assertT : (() -> Bool) -> Assertion
 assertT = AssertTrue
 
-{-| Basic function to create an Assert True assertion. Delays execution until tests are run. -}          
+{-| Basic function to create an Assert True assertion. Delays execution until tests are run. -}
 assert : Bool -> Assertion
 assert b = AssertTrue (\_ -> b)
 
