@@ -10,7 +10,7 @@ module ElmTest.Runner.Console (runDisplay) where
 import List
 import String
 
-import IO.IO exposing (..)
+import Console exposing (..)
 
 import ElmTest.Test exposing (..)
 import ElmTest.Run as Run
