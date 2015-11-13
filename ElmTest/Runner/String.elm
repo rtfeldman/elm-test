@@ -3,7 +3,7 @@ module ElmTest.Runner.String (runDisplay, run) where
 {-| Run a test suite and display it as a string.
 
 # Run
-@docs runDisplay
+@docs runDisplay, run
 
 -}
 
@@ -42,6 +42,8 @@ pretty n result =
                                                   else List.concatMap (pretty (n + 2)) r.results
                                  in  (indent n msg, result) :: subResults
 
+
+{-| Runs a test or test suite. Returns the report as both a String and a `Run.Result`. -}
 run : Test -> List (String, Run.Result)
 run t =
     let result = Run.run t

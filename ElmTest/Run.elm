@@ -4,7 +4,7 @@ module ElmTest.Run where
 the output, instead look at the ```runDisplay``` series in ElmTest.Runner
 
 # Run
-@docs run, pass, fail
+@docs run, pass, fail, Result, failedSuites, failedTests, passedSuites, passedTests
 
 -}
 
@@ -12,6 +12,9 @@ import ElmTest.Assertion exposing (..)
 import ElmTest.Test exposing (..)
 import List
 
+
+{-| The result of a test or suite of tests. Could be `Pass`, `Fail`, or a more
+detailed `Report` of several passes, failrures, and `Result`s. -}
 type Result = Pass String
             | Fail String String
             | Report String { results  : List Result
@@ -49,18 +52,24 @@ pass m = case m of
 fail : Result -> Bool
 fail = not << pass
 
+
+{-| The number of tests that passed in the Result. -}
 passedTests : Result -> Int
 passedTests result = case result of
                         Pass _     -> 1
                         Fail _ _   -> 0
                         Report n r -> List.sum << List.map passedTests <| r.results
 
+
+{-| The number of tests that failed in the Result. -}
 failedTests : Result -> Int
 failedTests result = case result of
                         Pass _     -> 0
                         Fail _ _   -> 1
                         Report n r -> List.sum << List.map failedTests <| r.results
 
+
+{-| The number of test suites that passed in the Result. -}
 passedSuites : Result -> Int
 passedSuites result = case result of
                         Report n r -> let passed = if List.length r.failures == 0
@@ -69,6 +78,8 @@ passedSuites result = case result of
                                       in  passed + (List.sum << List.map passedSuites <| r.results)
                         _ -> 0
 
+
+{-| The number of test suites that failed in the Result. -}
 failedSuites : Result -> Int
 failedSuites result = case result of
                         Report n r -> let failed = if List.length r.failures > 0
