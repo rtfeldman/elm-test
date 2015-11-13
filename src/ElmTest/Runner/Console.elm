@@ -17,7 +17,7 @@ import ElmTest.Run as Run
 import ElmTest.Runner.String as String
 
 
-{-| Run a list of tests in the IO type from [Max New's Elm IO library](https://github.com/maxsnew/IO/).
+{-| Run a list of tests in the IO type from [Laszlo Pandy's Elm Console library](https://github.com/laszlopandy/elm-console/).
 Requires this library to work. Results are printed to console once all tests have completed. Exits with
 exit code 0 if all tests pass, or with code 1 if any tests fail.
 -}

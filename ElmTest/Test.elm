@@ -3,25 +3,30 @@ module ElmTest.Test where
 {-| The units of a test suite, named tests.
 
 # Test
-@docs test, equals, defaultTest, suite
+@docs Test, test, equals, defaultTest, suite, nameOf, numberOfSuites, numberOfTests
 
 -}
 
 import ElmTest.Assertion exposing (..)
 import List
 
+{-| A test or suite of tests. -}
 type Test = TestCase String Assertion | Suite String (List Test)
 
+
+{-| The name of the given test or suite. -}
 nameOf : Test -> String
 nameOf test = case test of
                 TestCase n _ -> n
                 Suite    n _ -> n
 
+{-| The number of tests contained in the given test or suite. -}
 numberOfTests : Test -> Int
 numberOfTests test = case test of
                         TestCase _ _  -> 1
                         Suite    _ ts -> List.sum << List.map numberOfTests <| ts
 
+{-| The number of test suites contained in the given test or suite. -}
 numberOfSuites : Test -> Int
 numberOfSuites test = case test of
                         TestCase _ _  -> 0
