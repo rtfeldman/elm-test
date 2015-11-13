@@ -40,7 +40,7 @@ defaultTest : Assertion -> Test
 defaultTest a =
     let name = case a of
                  AssertTrue _ -> "True"
-                 AssertTrue _ -> "False"
+                 AssertFalse _ -> "False"
                  AssertEqual _ a b    -> a ++ " == " ++ b
                  AssertNotEqual _ a b -> a ++ " /= " ++ b
     in test name a
