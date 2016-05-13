@@ -2,7 +2,7 @@ module Example exposing (..)
 
 import Test exposing (..)
 import Random.Pcg as Random
-import Html exposing (Html)
+import Test.Runner.Console as Runner
 
 
 {-| A fuzzzer that usually generates "foo", but occasonally "bar". We expect a claim that it's always "foo" to fail.
@@ -33,9 +33,9 @@ actualFuzzSuite =
         ]
 
 
-main : Html a
+main : Program Never
 main =
-    Html.text (toString <| runWithSeed (Random.initialSeed 42) actualFuzzSuite)
+    Runner.plain allSuites
 
 
 
@@ -62,6 +62,11 @@ string =
                     "bar"
             )
             Random.bool
+
+
+allSuites : Test
+allSuites =
+    Test.batch [ fuzzSuite, actualFuzzSuite, oxfordifySuite, sampleSuite ]
 
 
 fuzzSuite : Test
@@ -123,3 +128,27 @@ oxfordifySuite =
                 |> onFail "given a list of length 3, did not return an oxford-style sentence"
         ]
         |> onFail "oxfordify failed"
+
+
+sampleSuite : Test
+sampleSuite =
+    Test.unit
+        [ \_ ->
+            { expected = "a thing"
+            , actually = "a thing"
+            }
+                |> assertEqual
+                |> onFail "okay, this was NOT supposed to fail"
+        , \_ ->
+            { expected = "failure w/o custom message"
+            , actually = "kaboom!"
+            }
+                |> assertEqual
+        , \_ ->
+            { expected = "failure w/ custom message"
+            , actually = "kaboom!"
+            }
+                |> assertEqual
+                |> onFail "this failed, as expected!"
+        ]
+        |> onFail "sampleSuite failed"
