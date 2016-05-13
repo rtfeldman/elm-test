@@ -25,7 +25,7 @@ type TestTree
 
 
 type alias Options =
-    { onFail : String
+    { onFail : Maybe String
     , runs : Int
     , doShrink : Bool
     }
@@ -42,12 +42,12 @@ type Fuzzer a
 
 batch : List Test -> Test
 batch tests =
-    Test { onFail = "Batch failed:", runs = 1, doShrink = False } (Batch tests)
+    Test { onFail = Nothing, runs = 1, doShrink = False } (Batch tests)
 
 
 onFail : String -> Test -> Test
 onFail str (Test opts tree) =
-    Test { opts | onFail = str } tree
+    Test { opts | onFail = Just str } tree
 
 
 runs : Int -> Test -> Test
@@ -57,14 +57,14 @@ runs int (Test opts tree) =
 
 unit : List (() -> Test) -> Test
 unit tests =
-    Test { onFail = "Unit test suite failed:", runs = 1, doShrink = False }
+    Test { onFail = Nothing, runs = 1, doShrink = False }
         <| Group
         <| List.map (\t _ -> t ()) tests
 
 
 fuzz : Fuzzer a -> List (a -> Test) -> Test
 fuzz (Fuzzer gen) fuzzTests =
-    Test { onFail = "Fuzz test suite failed:", runs = 100, doShrink = True }
+    Test { onFail = Nothing, runs = 100, doShrink = True }
         <| FuzzGroup
         <| (flip List.map) fuzzTests
             (\fuzzTest ( seed, runs, doShrink ) ->
@@ -73,7 +73,7 @@ fuzz (Fuzzer gen) fuzzTests =
                         Random.list runs gen |> Random.map (List.map (\arg _ -> fuzzTest arg))
 
                     opts =
-                        { onFail = "Fuzz test failed:", runs = runs, doShrink = doShrink }
+                        { onFail = Nothing, runs = runs, doShrink = doShrink }
                 in
                     Random.step genTests seed |> fst |> Group |> Test opts
             )
@@ -81,7 +81,7 @@ fuzz (Fuzzer gen) fuzzTests =
 
 fuzz2 : Fuzzer a -> Fuzzer b -> List (a -> b -> Test) -> Test
 fuzz2 (Fuzzer genA) (Fuzzer genB) fuzzTests =
-    Test { onFail = "Fuzz test suite failed:", runs = 100, doShrink = True }
+    Test { onFail = Nothing, runs = 100, doShrink = True }
         <| FuzzGroup
         <| (flip List.map) fuzzTests
             (\fuzzTest ( seed, runs, doShrink ) ->
@@ -93,7 +93,7 @@ fuzz2 (Fuzzer genA) (Fuzzer genB) fuzzTests =
                         Random.list runs genTuple |> Random.map (List.map (\( a, b ) _ -> fuzzTest a b))
 
                     opts =
-                        { onFail = "Fuzz test failed:", runs = runs, doShrink = doShrink }
+                        { onFail = Nothing, runs = runs, doShrink = doShrink }
                 in
                     Random.step genTests seed |> fst |> Group |> Test opts
             )
@@ -101,7 +101,7 @@ fuzz2 (Fuzzer genA) (Fuzzer genB) fuzzTests =
 
 assertEqual : { expected : a, actually : a } -> Test
 assertEqual { expected, actually } =
-    Test { onFail = "Test failed:", runs = 1, doShrink = False }
+    Test { onFail = Nothing, runs = 1, doShrink = False }
         <| Thunk
             (\_ ->
                 if expected == actually then
@@ -112,8 +112,8 @@ assertEqual { expected, actually } =
 
 
 type ResultTree
-    = Leaf String Outcome
-    | Branch String (List ResultTree)
+    = Leaf (Maybe String) Outcome
+    | Branch (Maybe String) (List ResultTree)
 
 
 runWithSeed : Random.Seed -> Test -> ResultTree
@@ -141,7 +141,7 @@ runWithSeed seed (Test opts tree) =
                         |> List.map2 (\test seed -> runWithSeed seed test) tests
                         |> Branch opts.onFail
     in
-        filterSuccesses unfiltered |> Maybe.withDefault (Branch "No failures" [])
+        filterSuccesses unfiltered |> Maybe.withDefault (Branch Nothing [])
 
 
 filterSuccesses : ResultTree -> Maybe ResultTree
