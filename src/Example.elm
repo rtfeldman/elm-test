@@ -2,11 +2,12 @@ module Example exposing (..)
 
 import Test exposing (..)
 import Random.Pcg as Random
-import Html
+import Html exposing (Html)
 
 
 {-| A fuzzzer that usually generates "foo", but occasonally "bar". We expect a claim that it's always "foo" to fail.
 -}
+usuallyFoo : Fuzzer String
 usuallyFoo =
     Fuzzer
         (Random.oneIn 30
@@ -32,6 +33,7 @@ actualFuzzSuite =
         ]
 
 
+main : Html a
 main =
     Html.text (toString <| runWithSeed (Random.initialSeed 42) actualFuzzSuite)
 
@@ -42,6 +44,7 @@ main =
 
 {-| stubbed function under test
 -}
+oxfordify : a -> b -> c -> String
 oxfordify _ _ _ =
     "Alice, Bob, and Claire"
 
