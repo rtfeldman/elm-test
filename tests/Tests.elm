@@ -1,8 +1,8 @@
-module Main exposing (..) -- where
+module Main exposing (..)
 
 import List
-
 import ElmTest exposing (..)
+
 
 tests : List Test
 tests =
@@ -10,13 +10,13 @@ tests =
     , test "pass" <| assert True
     , test "fail" <| assertNotEqual True False
     ]
-    ++
-    (List.map defaultTest <| assertionList [1..10] [1..10])
+        ++ (List.map defaultTest <| assertionList [1..10] [1..10])
 
 
 consoleTests : Test
 consoleTests =
     suite "All Tests" tests
+
 
 main =
     runSuite consoleTests
