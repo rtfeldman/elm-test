@@ -162,3 +162,176 @@ filterSuccesses rt =
                     Nothing
                 else
                     Just (Branch onFail filtered)
+
+
+type alias WorkerModel =
+    { test : Maybe Test
+    , position : Int
+    }
+
+
+dispatch : SupervisorModel -> ( SupervisorModel, Supervisor.Cmd )
+dispatch model =
+    Debug.crash "TODO implement"
+
+
+decodeOutcome : Value -> Outcome
+decodeOutcome =
+    Debug.crash "TODO implement"
+
+
+applyOutcome : Outcome -> ResultTree -> ResultTree
+applyOutcome outcome result =
+    Debug.crash "TODO implement"
+
+
+type SupervisorMsg
+    = Dispatch
+
+
+updateSupervisor : SupervisorMsg -> SupervisorModel -> ( SupervisorModel, Supervisor.Cmd )
+updateSupervisor supervisorMsg model =
+    case supervisorMsg of
+        FromWorker workerId data ->
+            case Decode.decodeValue decodeOutcome data of
+                Ok outcome ->
+                    let
+                        newResult =
+                            applyOutcome model.result outcome
+
+                        newPending =
+                            Dict.remove workerId model.pending
+
+                        newModel =
+                            { model | result = newResult, pending = newPending }
+                    in
+                        if Dict.isEmpty newPending then
+                            ( newModel, Supervisor.Cmd.Terminate )
+                        else
+                            dispatch newModel
+
+                Err err ->
+                    ( model, Supervisor.emit (Encode.string ("worker[" ++ workerId ++ "] sent malformed example data:" ++ toString data)) )
+
+        FromOutside data ->
+            case Decode.decodeValue supervisorMsgDecoder data of
+                Ok Dispatch ->
+                    dispatch model
+
+                Err err ->
+                    ( model, Supervisor.emit (Encode.string ("Error decoding message; error was: " ++ err)) )
+
+
+
+-- WORKER --
+
+
+sendError : String -> Worker.Cmd
+sendError err =
+    Debug.crash "TODO send error"
+
+
+sendOutcome : Outcome -> Worker.Cmd
+sendOutcome outcome =
+    Debug.crash "TODO send outcome"
+
+
+type WorkerMsg
+    = RunAtPosition Int Random.Seed
+
+
+workerMsgDecoder : Decoder WorkerMsg
+workerMsgDecoder =
+    Debug.crash "TODO implement workerMsgDecoder"
+
+
+updateWorker : Value -> WorkerModel -> ( WorkerModel, Worker.Cmd )
+updateWorker data model =
+    case Decode.decodeValue workerMsgDecoder data of
+        Ok ( RunAtPosition position, seed ) ->
+            case model.test of
+                Nothing ->
+                    ( model
+                    , sendError "Can’t run a test when there are no tests left!"
+                    )
+
+                Just test ->
+                    case skipAndRun (position - model.position) seed test of
+                        Ok ( resultTest, outcome ) ->
+                            ( { model | test = resultTest, position = position }
+                            , sendOutcome outcome
+                            )
+
+                        Err err ->
+                            ( model, sendError err )
+
+        Err err ->
+            ( model, sendError err )
+
+
+skipAndRun : Int -> Random.Seed -> Test -> Result String ( Maybe Test, Outcome )
+skipAndRun skips seed (Test opts tree) =
+    case tree of
+        Thunk thunk ->
+            if skips == 0 then
+                Ok ( Nothing, thunk () )
+            else
+                Err ("Still had " ++ toString skips ++ " skip(s) left but only a Thunk remaining.")
+
+        Group thunks ->
+            case List.drop skips thunks of
+                [] ->
+                    Err ("After skipping " ++ toString skips ++ " items, this Group of " ++ toString (List.length thunks) ++ " was empty, but we still needed to run something.")
+
+                thunk :: [] ->
+                    Ok ( Nothing, thunk () )
+
+                thunk :: rest ->
+                    Ok ( Just (Group rest), thunk () )
+
+        FuzzGroup randThunks ->
+            Debug.crash "TODO handle FuzzGroup"
+
+        --Random.list (List.length randThunks) Random.independentSeed
+        --    |> Random.map (List.map2 (\randThunk seed -> randThunk ( seed, opts.runs, opts.doShrink ) |> runWithSeed seed) randThunks)
+        --    |> (flip Random.step) seed
+        --    |> fst
+        --    |> Branch opts.onFail
+        Batch tests ->
+            Debug.crash "TODO handle Batch"
+
+
+
+--Random.list (List.length tests) Random.independentSeed
+--    |> (flip Random.step) seed
+--    |> fst
+--    |> List.map2 (\test seed -> runWithSeed seed test) tests
+--    |> Branch opts.onFail
+--type RunPath
+--    = Run (Maybe String) (() -> Outcome)
+--    | PathBranch (Maybe String) (List RunPath)
+--prepare : Random.Seed -> Test -> Dict RunId (() -> ( Path, Outcome ))
+--prepare seed (Test opts tree) =
+--    case tree of
+--        Thunk thunk ->
+--            Run opts.onFail thunk
+--        Group thunks ->
+--            thunks
+--                |> List.map (prepare seed)
+--                |> PathBranch opts.onFail
+--doThing randThunk seed _ =
+--    randThunk ( seed, opts.runs, opts.doShrink )
+--        |> runWithSeed seed
+--        FuzzGroup randThunks ->
+--            Random.independentSeed
+--                |> Random.list (List.length randThunks)
+--                |> Random.map (List.map2 toThing randThunks)
+--                |> (flip Random.step) seed
+--                |> fst
+--                |> Branch opts.onFail
+--        Batch tests ->
+--            Random.list (List.length tests) Random.independentSeed
+--                |> (flip Random.step) seed
+--                |> fst
+--                |> List.map2 (\test seed -> runWithSeed seed test) tests
+--                |> Branch opts.onFail

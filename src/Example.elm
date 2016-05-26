@@ -29,8 +29,14 @@ actualFuzzSuite =
             , actually = shouldBeFoo
             }
                 |> assertEqual
-                |> onFail "It wasn't \"foo\"."
+                |> describe "It wasn't \"foo\"."
         ]
+
+
+
+--main : Html a
+--main =
+--    Html.text (toString <| runWithSeed (Random.initialSeed 42) actualFuzzSuite)
 
 
 main : Program Never
@@ -66,19 +72,22 @@ string =
 
 allSuites : Test
 allSuites =
-    Test.batch [ fuzzSuite, actualFuzzSuite, oxfordifySuite, sampleSuite ]
+    Test.batch [ sampleSuite ]
+
+
+
+--Test.batch [ fuzzSuite, actualFuzzSuite, oxfordifySuite, sampleSuite ]
 
 
 fuzzSuite : Test
 fuzzSuite =
-    Test.fuzz2 string
-        string
+    (Test.fuzz2 string string)
         [ \name punctuation ->
             { expected = ""
             , actually = oxfordify "This sentence is empty" "." []
             }
                 |> assertEqual
-                |> onFail "given an empty list, did not return an empty string"
+                |> describe "given an empty list, return an empty string"
         , \name punctuation ->
             { expected = "This sentence contains one item."
             , actually = oxfordify "This sentence contains " "." [ "one item" ]
@@ -89,26 +98,30 @@ fuzzSuite =
             , actually = oxfordify "This sentence contains " "." [ "one item", "two item" ]
             }
                 |> assertEqual
-                |> onFail "given an empty list, did not return an empty string"
+                |> describe "given an empty list, return an empty string"
         , \name punctuation ->
             { expected = "This sentence contains one item, two item, and three item."
             , actually = oxfordify "This sentence contains " "." [ "one item", "two item", "three item" ]
             }
                 |> assertEqual
-                |> onFail "given a list of length 3, did not return an oxford-style sentence"
+                |> describe "given a list of length 3, return an oxford-style sentence"
         ]
-        |> onFail "oxfordify failed"
+        |> describe "oxfordify failed"
 
 
 oxfordifySuite : Test
 oxfordifySuite =
     Test.unit
         [ \_ ->
-            { expected = ""
-            , actually = oxfordify "This sentence is empty" "." []
-            }
-                |> assertEqual
-                |> onFail "given an empty list, did not return an empty string"
+            Test.unit
+                [ \_ ->
+                    { expected = ""
+                    , actually = oxfordify "This sentence is empty" "." []
+                    }
+                        |> assertEqual
+                        |> describe "returns an empty string"
+                ]
+                |> describe "given an empty list"
         , \_ ->
             { expected = "This sentence contains one item."
             , actually = oxfordify "This sentence contains " "." [ "one item" ]
@@ -119,15 +132,15 @@ oxfordifySuite =
             , actually = oxfordify "This sentence contains " "." [ "one item", "two item" ]
             }
                 |> assertEqual
-                |> onFail "given an empty list, did not return an empty string"
+                |> describe "given an empty list, did not return an empty string"
         , \_ ->
             { expected = "This sentence contains one item, two item, and three item."
             , actually = oxfordify "This sentence contains " "." [ "one item", "two item", "three item" ]
             }
                 |> assertEqual
-                |> onFail "given a list of length 3, did not return an oxford-style sentence"
+                |> describe "given a list of length 3, did not return an oxford-style sentence"
         ]
-        |> onFail "oxfordify failed"
+        |> describe "oxfordify failed"
 
 
 sampleSuite : Test
@@ -138,7 +151,7 @@ sampleSuite =
             , actually = "a thing"
             }
                 |> assertEqual
-                |> onFail "okay, this was NOT supposed to fail"
+                |> describe "okay, this was NOT supposed to fail"
         , \_ ->
             { expected = "failure w/o custom message"
             , actually = "kaboom!"
@@ -149,6 +162,6 @@ sampleSuite =
             , actually = "kaboom!"
             }
                 |> assertEqual
-                |> onFail "this failed, as expected!"
+                |> describe "this failed, as expected!"
         ]
-        |> onFail "sampleSuite failed"
+        |> describe "sampleSuite failed"
