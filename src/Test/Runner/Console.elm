@@ -24,7 +24,7 @@ plain test =
             Test.runWithSeed (Random.initialSeed 42) test
     in
         Html.beginnerProgram
-            { model = Plain.summaryLines 0 results ( 0, [] ) |> Plain.logSummaryLines
+            { model = Plain.summaryLines results |> Plain.logSummaryLines
             , view = (\_ -> Html.text "")
             , update = (\_ _ -> ())
             }

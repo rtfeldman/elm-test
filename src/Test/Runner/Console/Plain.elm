@@ -12,10 +12,15 @@ import Test exposing (Test, ResultTree(Branch, Leaf))
 import String
 
 
+summaryLines : ResultTree -> ( Int, List String )
+summaryLines resultTree =
+    summaryLinesHelp resultTree ( 0, [] )
+
+
 {-| Run a test and print the output
 -}
-summaryLines : Int -> ResultTree -> ( Int, List String ) -> ( Int, List String )
-summaryLines indentation resultTree ( failures, lines ) =
+summaryLinesHelp : ResultTree -> ( Int, List String ) -> ( Int, List String )
+summaryLinesHelp resultTree ( failures, lines ) =
     case resultTree of
         Leaf failureMsg pairs ->
             if List.isEmpty pairs then
@@ -28,13 +33,11 @@ summaryLines indentation resultTree ( failures, lines ) =
 
                     formatKeyValue : ( String, String ) -> String
                     formatKeyValue ( key, value ) =
-                        "  • " ++ key ++ ": " ++ value
+                        key ++ value
 
                     newLines : List String
                     newLines =
-                        (msg :: List.map formatKeyValue pairs)
-                            |> List.concatMap (\str -> [ str, "" ])
-                            |> List.map (indent indentation)
+                        [ msg, "" ] ++ List.map formatKeyValue pairs ++ [ "", "" ]
                 in
                     ( failures + 1
                     , lines ++ newLines
@@ -42,23 +45,15 @@ summaryLines indentation resultTree ( failures, lines ) =
 
         Branch failureMsg children ->
             let
-                ( newLines, nextIndentation ) =
+                newLines =
                     case failureMsg of
                         Just msg ->
-                            ( [ "✗ " ++ msg, "|" ]
-                                |> List.map (indent indentation)
-                            , indentation + 1
-                            )
+                            [ "| " ++ msg ]
 
                         Nothing ->
-                            ( [], indentation )
+                            []
             in
-                List.foldl (summaryLines nextIndentation) ( failures, lines ++ newLines ) children
-
-
-indent : Int -> String -> String
-indent amount str =
-    (String.repeat amount ("| ")) ++ str
+                List.foldl summaryLinesHelp ( failures, lines ++ newLines ) children
 
 
 logSummaryLines : ( Int, List String ) -> ()
