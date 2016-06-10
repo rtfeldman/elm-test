@@ -1,15 +1,11 @@
-module Suite exposing (Suite, toRunners, batch, describe, withRuns, withSeed, withShrink, unit, fuzz, fuzz2, fuzz3, fuzz4, fuzz5)
+module Suite exposing (Suite, toRunners, batch, describe, withRuns, withSeed, withShrink)
 
 {-| A collection of Tests.
 
-@docs Suite, toRunners, batch, describe, withRuns, withSeed, withShrink, unit, fuzz, fuzz2, fuzz3, fuzz4, fuzz5
+@docs Suite, toRunners, batch, describe, withRuns, withSeed, withShrink
 -}
 
-import Dict
-import Shrink
-import Random.Pcg as Random exposing (Generator)
 import Test exposing (Test)
-import Fuzzer exposing (Fuzzer)
 
 
 {-| A batch of Tests which have yet to be evaluated. Execution order is not
@@ -19,7 +15,7 @@ Use [`toRunners`](#toRunners) to convert a `Suite` into a list of
 `() -> Test` functions, which can then be evaluated.
 -}
 type Suite
-    = Tests Options (List (Options -> List Test))
+    = Tests Options (List (Random.Seed -> Int -> Bool -> List Test))
     | Batch (List Suite)
 
 
@@ -83,22 +79,25 @@ batch =
     Batch
 
 
-{-| Apply a description to a `Suite`.
+{-| Apply a description to each `Suite` in the given list, then [`batch`](#batch)
+them.
 
 -- TODO give a code example.
 -}
-describe : String -> Suite -> Suite
+describe : String -> List Suite -> Suite
 describe desc =
-    mapOptions (prependFail desc)
+    List.map (mapOptions (prependFail desc)) >> batch
 
 
-{-| TODO: docs
--}
-unit : List (() -> Test) -> Suite
-unit fns =
-    fns
-        |> List.map (\fn -> (\_ -> [ fn () ]))
-        |> Tests initialUnitOptions
+test : (a -> Test) -> a -> Suite
+test thunk arg =
+    Tests initialUnitOptions (\_ -> [ thunk arg ])
+
+
+it : String -> (a -> Test) -> a -> Suite
+it desc thunk arg =
+    Tests initialUnitOptions (\_ -> [ thunk arg ])
+        |> mapOptions (prependFail desc)
 
 
 initialUnitOptions : Options
@@ -110,110 +109,32 @@ initialUnitOptions =
     }
 
 
-{-| Run the given tests several times, using a randomly-generated input from a
-`Fuzzer` each time. By default, runs each test 100 times with different inputs,
-but you can configure the run count using [`withRuns`](#withRuns).
-
-These are called "[fuzz tests](https://en.wikipedia.org/wiki/Fuzz_testing)" because of the randomness.
-You may find them elsewhere called [property-based tests](http://blog.jessitron.com/2013/04/property-based-testing-what-is-it.html),
-[generative tests](http://www.pivotaltracker.com/community/tracker-blog/generative-testing), or
-[QuickCheck-style tests](https://en.wikipedia.org/wiki/QuickCheck).
-
--- TODO code sample
--}
-fuzz :
-    Fuzzer a
-    -> List (a -> Test)
-    -> Suite
-fuzz fuzzer fuzzSuites =
-    Tests initialOptions (List.map (fuzzToThunks fuzzer) fuzzSuites)
+prependFail : String -> Options -> Options
+prependFail str opts =
+    { opts | onFail = str :: opts.onFail }
 
 
-{-| Run a [fuzz test](#fuzz) using two random inputs.
-
-This is a convenicence function that lets you skip calling `Fuzzer.tuple`.
-
-
--- TODO code sample
--}
-fuzz2 :
-    Fuzzer a
-    -> Fuzzer b
-    -> List (a -> b -> Test)
-    -> Suite
-fuzz2 fuzzA fuzzB =
-    let
-        fuzzer =
-            Fuzzer.tuple ( fuzzA, fuzzB )
-    in
-        fuzzN (uncurry >> fuzzToThunks fuzzer)
+toTests : Random.Seed -> Options -> (Options -> List Test) -> List (() -> Test)
+toTests seed opts getTests =
+    { opts
+        | seed = Maybe.oneOf [ opts.seed, Just seed ]
+        , runs = Maybe.withDefault defaults.runs opts.runs
+        , doShrink = Maybe.withDefault defaults.doShrink opts.doShrink
+    }
+        |> getTests
+        |> List.map (\test _ -> List.foldr Test.it test opts.onFail)
 
 
-{-| Run a [fuzz test](#fuzz) using three random inputs.
+mapOptions : (Options -> Options) -> Suite -> Suite
+mapOptions translate suite =
+    case suite of
+        Tests opts thunks ->
+            Tests (translate opts) thunks
 
-This is a convenicence function that lets you skip calling `Fuzzer.tuple3`.
-
--- TODO code sample
--}
-fuzz3 :
-    Fuzzer a
-    -> Fuzzer b
-    -> Fuzzer c
-    -> List (a -> b -> c -> Test)
-    -> Suite
-fuzz3 fuzzA fuzzB fuzzC =
-    let
-        fuzzer =
-            Fuzzer.tuple3 ( fuzzA, fuzzB, fuzzC )
-    in
-        fuzzN (uncurry3 >> fuzzToThunks fuzzer)
-
-
-{-| Run a [fuzz test](#fuzz) using four random inputs.
-
-This is a convenicence function that lets you skip calling `Fuzzer.tuple4`.
-
--- TODO code sample
--}
-fuzz4 :
-    Fuzzer a
-    -> Fuzzer b
-    -> Fuzzer c
-    -> Fuzzer d
-    -> List (a -> b -> c -> d -> Test)
-    -> Suite
-fuzz4 fuzzA fuzzB fuzzC fuzzD =
-    let
-        fuzzer =
-            Fuzzer.tuple4 ( fuzzA, fuzzB, fuzzC, fuzzD )
-    in
-        fuzzN (uncurry4 >> fuzzToThunks fuzzer)
-
-
-{-| Run a [fuzz test](#fuzz) using four random inputs.
-
-This is a convenicence function that lets you skip calling `Fuzzer.tuple5`.
-
--- TODO code sample
--}
-fuzz5 :
-    Fuzzer a
-    -> Fuzzer b
-    -> Fuzzer c
-    -> Fuzzer d
-    -> Fuzzer e
-    -> List (a -> b -> c -> d -> e -> Test)
-    -> Suite
-fuzz5 fuzzA fuzzB fuzzC fuzzD fuzzE =
-    let
-        fuzzer =
-            Fuzzer.tuple5 ( fuzzA, fuzzB, fuzzC, fuzzD, fuzzE )
-    in
-        fuzzN (uncurry5 >> fuzzToThunks fuzzer)
-
-
-
--- INTERNAL HELPERS --
+        Batch suites ->
+            suites
+                |> List.map (mapOptions translate)
+                |> Batch
 
 
 type alias Options =
@@ -239,124 +160,3 @@ defaults =
     , doShrink = True
     , seed = Random.initialSeed 42
     }
-
-
-toTests : Random.Seed -> Options -> (Options -> List Test) -> List (() -> Test)
-toTests seed opts getTests =
-    { opts | seed = Maybe.oneOf [ opts.seed, Just seed ] }
-        |> getTests
-        |> List.map (\test _ -> List.foldr Test.it test opts.onFail)
-
-
-prependFail : String -> Options -> Options
-prependFail str opts =
-    { opts | onFail = str :: opts.onFail }
-
-
-mapOptions : (Options -> Options) -> Suite -> Suite
-mapOptions translate suite =
-    case suite of
-        Tests opts thunks ->
-            Tests (translate opts) thunks
-
-        Batch suites ->
-            suites
-                |> List.map (mapOptions translate)
-                |> Batch
-
-
-fuzzToThunks : Fuzzer a -> (a -> Test) -> Options -> List Test
-fuzzToThunks fuzzer runAssert opts =
-    let
-        seed =
-            Maybe.withDefault defaults.seed opts.seed
-
-        runs =
-            Maybe.withDefault defaults.runs opts.runs
-
-        doShrink =
-            Maybe.withDefault defaults.doShrink opts.doShrink
-
-        runWithInput val =
-            let
-                test =
-                    runAssert val
-
-                shrunkenVal =
-                    if doShrink && test /= Test.pass then
-                        Shrink.shrink (runAssert >> (/=) Test.pass) fuzzer.shrinker val
-                    else
-                        val
-
-                shrunkenTest =
-                    if doShrink then
-                        runAssert shrunkenVal
-                    else
-                        test
-            in
-                ( Just (toString shrunkenVal), shrunkenTest )
-
-        -- testRuns : Generator (List a)
-        testRuns =
-            Random.list runs fuzzer.generator
-
-        generators =
-            Random.map (List.map runWithInput) testRuns
-
-        dedupe pairs =
-            pairs
-                |> List.map (\( mk, v ) -> ( Maybe.withDefault "" mk, v ))
-                |> Dict.fromList
-                |> Dict.toList
-                |> List.map
-                    (\( s, v ) ->
-                        ( if s == "" then
-                            Nothing
-                          else
-                            Just s
-                        , v
-                        )
-                    )
-    in
-        seed
-            |> Random.step generators
-            |> fst
-            |> dedupe
-            |> List.map formatTest
-
-
-fuzzN : (a -> Options -> List Test) -> List a -> Suite
-fuzzN fn fuzzSuites =
-    fuzzSuites
-        |> List.map fn
-        |> Tests initialOptions
-
-
-uncurry3 : (a -> b -> c -> d) -> ( a, b, c ) -> d
-uncurry3 fn ( a, b, c ) =
-    fn a b c
-
-
-uncurry4 : (a -> b -> c -> d -> e) -> ( a, b, c, d ) -> e
-uncurry4 fn ( a, b, c, d ) =
-    fn a b c d
-
-
-uncurry5 : (a -> b -> c -> d -> e -> f) -> ( a, b, c, d, e ) -> f
-uncurry5 fn ( a, b, c, d, e ) =
-    fn a b c d e
-
-
-formatTest : ( Maybe String, Test ) -> Test
-formatTest ( input, test ) =
-    Test.formatFailures (prependInput input) test
-
-
-prependInput : Maybe String -> String -> String
-prependInput input original =
-    case input of
-        Nothing ->
-            original
-
-        Just str ->
-            "Input: " ++ str ++ "\n\n" ++ original
